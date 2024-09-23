@@ -7,7 +7,7 @@
 ## Como Contribuir
 1. Clonar el Proyecto
 Clona el proyecto desde un repositorio remoto para obtener una copia local.
-git clone https://github.com/usuario/repositorio.git
+git clone https://github.com/EricLeoon/ServiciosWeb.git
 Esto descarga el repositorio remoto en una carpeta local.
 2. Navegar al Directorio del Proyecto
 Ve a la carpeta del proyecto recién clonado.
@@ -42,7 +42,7 @@ git log
 Flujo Completo de Ejemplo
 ## Resumen
 1. Clonar el repositorio:
-git clone https://github.com/usuario/proyecto.git
+git clone https://github.com/EricLeoon/ServiciosWeb.git
 2. Navegar al directorio:
 cd proyecto
 3. Crear y cambiar a una nueva rama (opcional):
