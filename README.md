@@ -1,8 +1,8 @@
 ﻿# ServiciosWeb
 ## Autores
-- [Curiel Perea Loibeth - 20161179](https://github.com/usuario)
-- [León Cruz Eric Moisés - 20161238](https://github.com/usuario)
-- [Juarez Velasco Rodrigo - 20161224](https://github.com/usuario)
+- [Curiel Perea Loibeth - 20161179](https://github.com/Loi-Beth)
+- [León Cruz Eric Moisés - 20161238](https://github.com/EricLeoon)
+- [Juarez Velasco Rodrigo - 20161224](https://github.com/RodrigoJua)
 
 ## Como Contribuir
 1. Clonar el Proyecto
