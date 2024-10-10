@@ -1,16 +1,52 @@
 const express = require('express');
+const fs = require('fs');
 const app = express();
 const port = 3000;
 
 // Middleware para manejar JSON
 app.use(express.json());
 
+// Función para leer datos de JSON
+const readData = () => {
+    try {
+        const data = fs.readFileSync('data.json');
+        return JSON.parse(data);
+    } catch (err) {
+        console.error('Error al leer el archivo data.json:', err);
+        return {
+            admins: [],
+            productos: [],
+            clientes: [],
+            pedidos: [],
+            inventario: {
+                garrafones: 100,
+                tapas: 200,
+                agua: 500
+            }
+        };
+    }
+};
+
+// Función para escribir datos en JSON
+const writeData = (data) => {
+    try {
+        fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error('Error al escribir en el archivo data.json:', err);
+    }
+};
+
+// Leer datos iniciales
+let { admins, productos, clientes, pedidos, inventario } = readData();
+
+// Función para generar IDs únicos
+const generateId = () => Math.floor(Math.random() * 10000);
+
 /** Rutas para Autenticación **/
 
 // Manejo de login
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-    // Aquí deberías implementar la lógica de autenticación real, posiblemente con una base de datos
     if (username === 'admin' && password === '1234') {
         res.send('Login exitoso');
     } else {
@@ -22,205 +58,185 @@ app.post('/login', (req, res) => {
 
 // Obtener la lista de administradores
 app.get('/admin', (req, res) => {
-    res.send('Lista de administradores');
+    res.json(admins);
 });
 
 // Obtener un administrador por su ID
 app.get('/admin/:id', (req, res) => {
-    const adminId = req.params.id;
-    res.send(`Detalles del administrador con ID: ${adminId}`);
+    const admin = admins.find(a => a.id === parseInt(req.params.id));
+    if (admin) {
+        res.json(admin);
+    } else {
+        res.status(404).send('Administrador no encontrado');
+    }
 });
 
 // Crear un nuevo administrador
 app.post('/admin', (req, res) => {
-    const nuevoAdmin = req.body;
-    res.send(`Administrador creado: ${JSON.stringify(nuevoAdmin)}`);
+    const nuevoAdmin = { id: generateId(), ...req.body };
+    admins.push(nuevoAdmin);
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.json(nuevoAdmin);
 });
 
 // Actualizar un administrador existente
 app.put('/admin/:id', (req, res) => {
-    const adminId = req.params.id;
-    const adminActualizado = req.body;
-    res.send(`Administrador con ID: ${adminId} actualizado a: ${JSON.stringify(adminActualizado)}`);
+    const admin = admins.find(a => a.id === parseInt(req.params.id));
+    if (admin) {
+        Object.assign(admin, req.body);
+        writeData({ admins, productos, clientes, pedidos, inventario });
+        res.json(admin);
+    } else {
+        res.status(404).send('Administrador no encontrado');
+    }
 });
 
 // Eliminar un administrador
 app.delete('/admin/:id', (req, res) => {
-    const adminId = req.params.id;
-    res.send(`Administrador con ID: ${adminId} ha sido eliminado`);
-});
-
-/** Rutas para Roles y Permisos **/
-
-// Obtener lista de roles y permisos
-app.get('/roles', (req, res) => {
-    res.send('Lista de roles y permisos');
-});
-
-// Crear o actualizar un rol y sus permisos
-app.post('/roles', (req, res) => {
-    const { rol, permisos } = req.body;
-    res.send(`Rol ${rol} con permisos ${JSON.stringify(permisos)} creado o actualizado`);
+    admins = admins.filter(a => a.id !== parseInt(req.params.id));
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.send(`Administrador con ID: ${req.params.id} ha sido eliminado`);
 });
 
 /** Rutas para Productos **/
 
 // Obtener todos los productos
 app.get('/productos', (req, res) => {
-    res.send('Lista de productos de la purificadora');
+    res.json(productos);
 });
 
 // Obtener un producto por su ID
 app.get('/productos/:id', (req, res) => {
-    const productId = req.params.id;
-    res.send(`Producto con ID: ${productId}`);
+    const producto = productos.find(p => p.id === parseInt(req.params.id));
+    if (producto) {
+        res.json(producto);
+    } else {
+        res.status(404).send('Producto no encontrado');
+    }
 });
 
 // Crear un nuevo producto
 app.post('/productos', (req, res) => {
-    const nuevoProducto = req.body;
-    res.send(`Producto agregado: ${JSON.stringify(nuevoProducto)}`);
+    const nuevoProducto = { id: generateId(), ...req.body };
+    productos.push(nuevoProducto);
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.json(nuevoProducto);
 });
 
 // Actualizar un producto existente
 app.put('/productos/:id', (req, res) => {
-    const productId = req.params.id;
-    const productoActualizado = req.body;
-    res.send(`Producto con ID: ${productId} actualizado a: ${JSON.stringify(productoActualizado)}`);
+    const producto = productos.find(p => p.id === parseInt(req.params.id));
+    if (producto) {
+        Object.assign(producto, req.body);
+        writeData({ admins, productos, clientes, pedidos, inventario });
+        res.json(producto);
+    } else {
+        res.status(404).send('Producto no encontrado');
+    }
 });
 
 // Eliminar un producto
 app.delete('/productos/:id', (req, res) => {
-    const productId = req.params.id;
-    res.send(`Producto con ID: ${productId} ha sido eliminado`);
+    productos = productos.filter(p => p.id !== parseInt(req.params.id));
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.send(`Producto con ID: ${req.params.id} ha sido eliminado`);
 });
 
 /** Rutas para Clientes **/
 
 // Obtener todos los clientes
 app.get('/clientes', (req, res) => {
-    res.send('Lista de clientes');
+    res.json(clientes);
 });
 
 // Obtener un cliente por su ID
 app.get('/clientes/:id', (req, res) => {
-    const clienteId = req.params.id;
-    res.send(`Cliente con ID: ${clienteId}`);
+    const cliente = clientes.find(c => c.id === parseInt(req.params.id));
+    if (cliente) {
+        res.json(cliente);
+    } else {
+        res.status(404).send('Cliente no encontrado');
+    }
 });
 
 // Crear un nuevo cliente
 app.post('/clientes', (req, res) => {
-    const nuevoCliente = req.body;
-    res.send(`Cliente agregado: ${JSON.stringify(nuevoCliente)}`);
+    const nuevoCliente = { id: generateId(), ...req.body };
+    clientes.push(nuevoCliente);
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.json(nuevoCliente);
 });
 
 // Actualizar un cliente existente
 app.put('/clientes/:id', (req, res) => {
-    const clienteId = req.params.id;
-    const clienteActualizado = req.body;
-    res.send(`Cliente con ID: ${clienteId} actualizado a: ${JSON.stringify(clienteActualizado)}`);
+    const cliente = clientes.find(c => c.id === parseInt(req.params.id));
+    if (cliente) {
+        Object.assign(cliente, req.body);
+        writeData({ admins, productos, clientes, pedidos, inventario });
+        res.json(cliente);
+    } else {
+        res.status(404).send('Cliente no encontrado');
+    }
 });
 
 // Eliminar un cliente
 app.delete('/clientes/:id', (req, res) => {
-    const clienteId = req.params.id;
-    res.send(`Cliente con ID: ${clienteId} ha sido eliminado`);
+    clientes = clientes.filter(c => c.id !== parseInt(req.params.id));
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.send(`Cliente con ID: ${req.params.id} ha sido eliminado`);
 });
 
 /** Rutas para Pedidos **/
 
 // Obtener todos los pedidos
 app.get('/pedidos', (req, res) => {
-    res.send('Lista de pedidos');
+    res.json(pedidos);
 });
 
 // Obtener un pedido por su ID
 app.get('/pedidos/:id', (req, res) => {
-    const pedidoId = req.params.id;
-    res.send(`Pedido con ID: ${pedidoId}`);
+    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
+    if (pedido) {
+        res.json(pedido);
+    } else {
+        res.status(404).send('Pedido no encontrado');
+    }
 });
 
 // Crear un nuevo pedido
 app.post('/pedidos', (req, res) => {
-    const nuevoPedido = req.body;
-    res.send(`Pedido creado: ${JSON.stringify(nuevoPedido)}`);
+    const nuevoPedido = { id: generateId(), ...req.body };
+    pedidos.push(nuevoPedido);
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.json(nuevoPedido);
 });
 
 // Actualizar un pedido existente
 app.put('/pedidos/:id', (req, res) => {
-    const pedidoId = req.params.id;
-    const pedidoActualizado = req.body;
-    res.send(`Pedido con ID: ${pedidoId} actualizado a: ${JSON.stringify(pedidoActualizado)}`);
+    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
+    if (pedido) {
+        Object.assign(pedido, req.body);
+        writeData({ admins, productos, clientes, pedidos, inventario });
+        res.json(pedido);
+    } else {
+        res.status(404).send('Pedido no encontrado');
+    }
 });
 
 // Cancelar un pedido
 app.delete('/pedidos/:id', (req, res) => {
-    const pedidoId = req.params.id;
-    res.send(`Pedido con ID: ${pedidoId} ha sido cancelado`);
+    pedidos = pedidos.filter(p => p.id !== parseInt(req.params.id));
+    writeData({ admins, productos, clientes, pedidos, inventario });
+    res.send(`Pedido con ID: ${req.params.id} ha sido cancelado`);
 });
 
-/** Rutas para Inventario **/
+/** Ruta para el inventario **/
 
-// Obtener inventario de garrafones
-app.get('/inventario/garrafones', (req, res) => {
-    res.send('Inventario de garrafones disponible');
+// Obtener inventario
+app.get('/inventario', (req, res) => {
+    res.json(inventario);
 });
 
-// Obtener inventario de tapas
-app.get('/inventario/tapas', (req, res) => {
-    res.send('Inventario de tapas disponible');
-});
-
-// Obtener inventario de agua (litros)
-app.get('/inventario/agua', (req, res) => {
-    res.send('Inventario de agua en litros disponible');
-});
-
-// Actualizar inventario (garrafones, tapas o agua)
-app.post('/inventario/actualizar', (req, res) => {
-    const { tipo, cantidad } = req.body;
-    res.send(`Inventario de ${tipo} actualizado en ${cantidad}`);
-});
-
-/** Rutas para Rellenado **/
-
-// Registrar un rellenado de garrafón
-app.post('/rellenado', (req, res) => {
-    const { tamaño, litros, precio } = req.body;
-    res.send(`Rellenado de garrafón tamaño ${tamaño} con ${litros} litros por ${precio} registrado`);
-});
-
-/** Rutas para Reportes de Ventas **/
-
-// Obtener reporte de ventas del día
-app.get('/ventas/dia', (req, res) => {
-    res.send('Reporte de ventas del día');
-});
-
-// Obtener reporte de ventas de la semana
-app.get('/ventas/semana', (req, res) => {
-    res.send('Reporte de ventas de la semana');
-});
-
-// Obtener reporte de ventas del mes
-app.get('/ventas/mes', (req, res) => {
-    res.send('Reporte de ventas del mes');
-});
-
-/** Rutas para Manejo de Tamaños de Garrafones **/
-
-// Obtener lista de tamaños de garrafones y precios
-app.get('/garrafones/tamaños', (req, res) => {
-    res.send('Lista de tamaños de garrafones y precios');
-});
-
-// Agregar o modificar un tamaño de garrafón
-app.post('/garrafones/tamaños', (req, res) => {
-    const { tamaño, precio } = req.body;
-    res.send(`Tamaño de garrafón ${tamaño} con precio ${precio} agregado o actualizado`);
-});
-
-// Escuchar en el puerto especificado
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`);
 });

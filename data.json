@@ -1,0 +1,67 @@
+{
+  "admins": [
+    {
+      "id": 1,
+      "nombre": "Admin 1",
+      "email": "admin1@example.com",
+      "role": "administrador"
+    },
+    {
+      "id": 2,
+      "nombre": "Admin 2",
+      "email": "admin2@example.com",
+      "role": "administrador"
+    },
+    {
+      "id": 3,
+      "nombre": "Eric Leon",
+      "email": "eric.leon@example.com",
+      "role": "superadministrador"
+    }
+  ],
+  "productos": [
+    {
+      "id": 1,
+      "nombre": "Garrafón de agua",
+      "precio": 50,
+      "descripcion": "Garrafón de agua de 20 litros."
+    },
+    {
+      "id": 5581,
+      "nombre": "Botella de Agua 1L",
+      "precio": 20,
+      "descripcion": "Botella de agua de un litro"
+    }
+  ],
+  "clientes": [
+    {
+      "id": 1,
+      "nombre": "Cliente 1",
+      "email": "cliente1@example.com"
+    },
+    {
+      "id": 2,
+      "nombre": "Cliente 2",
+      "email": "cliente2@example.com"
+    }
+  ],
+  "pedidos": [
+    {
+      "id": 1,
+      "clienteId": 1,
+      "productoId": 1,
+      "cantidad": 2
+    },
+    {
+      "id": 2,
+      "clienteId": 2,
+      "productoId": 2,
+      "cantidad": 5
+    }
+  ],
+  "inventario": {
+    "garrafones": 100,
+    "tapas": 200,
+    "agua": 500
+  }
+}
