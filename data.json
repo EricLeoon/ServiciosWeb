@@ -1,22 +1,25 @@
 {
-  "admins": [
+  "usuarios": [
     {
       "id": 1,
       "nombre": "Admin 1",
       "email": "admin1@example.com",
-      "role": "administrador"
+      "password": "hashedPassword1", 
+      "rol": "admin"
     },
     {
       "id": 2,
-      "nombre": "Admin 2",
-      "email": "admin2@example.com",
-      "role": "administrador"
+      "nombre": "Cliente 1",
+      "email": "cliente1@example.com",
+      "password": "hashedPassword2",
+      "rol": "cliente"
     },
     {
       "id": 3,
       "nombre": "Eric Leon",
       "email": "eric.leon@example.com",
-      "role": "superadministrador"
+      "password": "hashedPassword3",
+      "rol": "superadmin"
     }
   ],
   "productos": [
@@ -33,28 +36,16 @@
       "descripcion": "Botella de agua de un litro"
     }
   ],
-  "clientes": [
-    {
-      "id": 1,
-      "nombre": "Cliente 1",
-      "email": "cliente1@example.com"
-    },
-    {
-      "id": 2,
-      "nombre": "Cliente 2",
-      "email": "cliente2@example.com"
-    }
-  ],
   "pedidos": [
     {
       "id": 1,
-      "clienteId": 1,
+      "usuarioId": 2,
       "productoId": 1,
       "cantidad": 2
     },
     {
       "id": 2,
-      "clienteId": 2,
+      "usuarioId": 2,
       "productoId": 2,
       "cantidad": 5
     }

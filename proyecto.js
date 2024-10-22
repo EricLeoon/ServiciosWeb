@@ -1,240 +1,283 @@
 const express = require('express');
-const fs = require('fs');
+const mysql = require('mysql2');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const path = require('path');  // Para manejar rutas de archivos
 const app = express();
 const port = 3000;
 
 // Middleware para manejar JSON
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Para procesar formularios
 
-// Función para leer datos de JSON
-const readData = () => {
-    try {
-        const data = fs.readFileSync('data.json');
-        return JSON.parse(data);
-    } catch (err) {
-        console.error('Error al leer el archivo data.json:', err);
-        return {
-            admins: [],
-            productos: [],
-            clientes: [],
-            pedidos: [],
-            inventario: {
-                garrafones: 100,
-                tapas: 200,
-                agua: 500
-            }
-        };
+// Conexión a la base de datos MySQL
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: 'leon2929',
+    database: 'purificadora_db'
+});
+
+// Conectar a la base de datos
+db.connect(err => {
+    if (err) {
+        console.error('Error conectando a la base de datos:', err);
+        return;
     }
+    console.log('Conectado a la base de datos MySQL.');
+});
+
+// Función para generar tokens JWT
+const generateToken = (user) => {
+    return jwt.sign({ id: user.id, rol: user.rol }, 'tu_secreto_jwt', { expiresIn: '1h' });
 };
-
-// Función para escribir datos en JSON
-const writeData = (data) => {
-    try {
-        fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-    } catch (err) {
-        console.error('Error al escribir en el archivo data.json:', err);
-    }
-};
-
-// Leer datos iniciales
-let { admins, productos, clientes, pedidos, inventario } = readData();
-
-// Función para generar IDs únicos
-const generateId = () => Math.floor(Math.random() * 10000);
 
 /** Rutas para Autenticación **/
 
+// Ruta para servir el formulario de login
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
 // Manejo de login
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === 'admin' && password === '1234') {
-        res.send('Login exitoso');
-    } else {
-        res.status(401).send('Credenciales incorrectas');
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email y contraseña son requeridos.' });
     }
+
+    db.query('SELECT * FROM usuarios WHERE email = ?', [email], (err, results) => {
+        if (err) {
+            console.error('Error en la consulta:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        
+        if (results.length === 0) {
+            return res.status(401).send('Credenciales incorrectas');
+        }
+
+        const user = results[0];
+
+        // Comparar la contraseña hasheada
+        bcrypt.compare(password, user.password, (err, match) => {
+            if (err) {
+                console.error('Error al comparar contraseñas:', err);
+                return res.status(500).send('Error en el servidor');
+            }
+
+            if (!match) {
+                return res.status(401).send('Credenciales incorrectas');
+            }
+
+            const token = generateToken(user);
+            res.json({ token });
+        });
+    });
 });
 
-/** Rutas para Administradores **/
+/** Rutas para Usuarios **/
 
-// Obtener la lista de administradores
-app.get('/admin', (req, res) => {
-    res.json(admins);
+// Obtener todos los usuarios
+app.get('/usuarios', (req, res) => {
+    db.query('SELECT * FROM usuarios', (err, results) => {
+        if (err) {
+            console.error('Error al obtener usuarios:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        res.json(results);
+    });
 });
 
-// Obtener un administrador por su ID
-app.get('/admin/:id', (req, res) => {
-    const admin = admins.find(a => a.id === parseInt(req.params.id));
-    if (admin) {
-        res.json(admin);
-    } else {
-        res.status(404).send('Administrador no encontrado');
+// Crear un nuevo usuario
+app.post('/usuarios', (req, res) => {
+    const { nombre, email, password, rol } = req.body;
+
+    if (!nombre || !email || !password || !rol) {
+        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
+
+    bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+            console.error('Error al hashear la contraseña:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        const nuevoUsuario = { nombre, email, password: hash, rol };
+        db.query('INSERT INTO usuarios SET ?', nuevoUsuario, (err, result) => {
+            if (err) {
+                console.error('Error al insertar el usuario:', err);
+                return res.status(500).send('Error en el servidor');
+            }
+            res.json({ id: result.insertId, ...nuevoUsuario });
+        });
+    });
 });
 
-// Crear un nuevo administrador
-app.post('/admin', (req, res) => {
-    const nuevoAdmin = { id: generateId(), ...req.body };
-    admins.push(nuevoAdmin);
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.json(nuevoAdmin);
-});
+// Actualizar un usuario existente
+app.put('/usuarios/:id', (req, res) => {
+    const { nombre, email, rol } = req.body;
 
-// Actualizar un administrador existente
-app.put('/admin/:id', (req, res) => {
-    const admin = admins.find(a => a.id === parseInt(req.params.id));
-    if (admin) {
-        Object.assign(admin, req.body);
-        writeData({ admins, productos, clientes, pedidos, inventario });
-        res.json(admin);
-    } else {
-        res.status(404).send('Administrador no encontrado');
+    if (!nombre || !email || !rol) {
+        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
+
+    db.query('UPDATE usuarios SET nombre = ?, email = ?, rol = ? WHERE id = ?', [nombre, email, rol, req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el usuario:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Usuario no encontrado');
+        }
+
+        res.send('Usuario actualizado');
+    });
 });
 
-// Eliminar un administrador
-app.delete('/admin/:id', (req, res) => {
-    admins = admins.filter(a => a.id !== parseInt(req.params.id));
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.send(`Administrador con ID: ${req.params.id} ha sido eliminado`);
+// Eliminar un usuario
+app.delete('/usuarios/:id', (req, res) => {
+    db.query('DELETE FROM usuarios WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar el usuario:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Usuario no encontrado');
+        }
+
+        res.send(`Usuario con ID: ${req.params.id} ha sido eliminado`);
+    });
 });
 
 /** Rutas para Productos **/
 
 // Obtener todos los productos
 app.get('/productos', (req, res) => {
-    res.json(productos);
-});
-
-// Obtener un producto por su ID
-app.get('/productos/:id', (req, res) => {
-    const producto = productos.find(p => p.id === parseInt(req.params.id));
-    if (producto) {
-        res.json(producto);
-    } else {
-        res.status(404).send('Producto no encontrado');
-    }
+    db.query('SELECT * FROM productos', (err, results) => {
+        if (err) {
+            console.error('Error al obtener productos:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        res.json(results);
+    });
 });
 
 // Crear un nuevo producto
 app.post('/productos', (req, res) => {
-    const nuevoProducto = { id: generateId(), ...req.body };
-    productos.push(nuevoProducto);
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.json(nuevoProducto);
+    const nuevoProducto = req.body;
+
+    if (!nuevoProducto.nombre || !nuevoProducto.precio || !nuevoProducto.descripcion) {
+        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
+    }
+
+    db.query('INSERT INTO productos SET ?', nuevoProducto, (err, result) => {
+        if (err) {
+            console.error('Error al insertar el producto:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        res.json({ id: result.insertId, ...nuevoProducto });
+    });
 });
 
 // Actualizar un producto existente
 app.put('/productos/:id', (req, res) => {
-    const producto = productos.find(p => p.id === parseInt(req.params.id));
-    if (producto) {
-        Object.assign(producto, req.body);
-        writeData({ admins, productos, clientes, pedidos, inventario });
-        res.json(producto);
-    } else {
-        res.status(404).send('Producto no encontrado');
-    }
+    const nuevoDatos = req.body;
+
+    db.query('UPDATE productos SET ? WHERE id = ?', [nuevoDatos, req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el producto:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+
+        res.send('Producto actualizado');
+    });
 });
 
 // Eliminar un producto
 app.delete('/productos/:id', (req, res) => {
-    productos = productos.filter(p => p.id !== parseInt(req.params.id));
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.send(`Producto con ID: ${req.params.id} ha sido eliminado`);
-});
+    db.query('DELETE FROM productos WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar el producto:', err);
+            return res.status(500).send('Error en el servidor');
+        }
 
-/** Rutas para Clientes **/
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
 
-// Obtener todos los clientes
-app.get('/clientes', (req, res) => {
-    res.json(clientes);
-});
-
-// Obtener un cliente por su ID
-app.get('/clientes/:id', (req, res) => {
-    const cliente = clientes.find(c => c.id === parseInt(req.params.id));
-    if (cliente) {
-        res.json(cliente);
-    } else {
-        res.status(404).send('Cliente no encontrado');
-    }
-});
-
-// Crear un nuevo cliente
-app.post('/clientes', (req, res) => {
-    const nuevoCliente = { id: generateId(), ...req.body };
-    clientes.push(nuevoCliente);
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.json(nuevoCliente);
-});
-
-// Actualizar un cliente existente
-app.put('/clientes/:id', (req, res) => {
-    const cliente = clientes.find(c => c.id === parseInt(req.params.id));
-    if (cliente) {
-        Object.assign(cliente, req.body);
-        writeData({ admins, productos, clientes, pedidos, inventario });
-        res.json(cliente);
-    } else {
-        res.status(404).send('Cliente no encontrado');
-    }
-});
-
-// Eliminar un cliente
-app.delete('/clientes/:id', (req, res) => {
-    clientes = clientes.filter(c => c.id !== parseInt(req.params.id));
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.send(`Cliente con ID: ${req.params.id} ha sido eliminado`);
+        res.send(`Producto con ID: ${req.params.id} ha sido eliminado`);
+    });
 });
 
 /** Rutas para Pedidos **/
 
 // Obtener todos los pedidos
 app.get('/pedidos', (req, res) => {
-    res.json(pedidos);
-});
-
-// Obtener un pedido por su ID
-app.get('/pedidos/:id', (req, res) => {
-    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
-    if (pedido) {
-        res.json(pedido);
-    } else {
-        res.status(404).send('Pedido no encontrado');
-    }
+    db.query('SELECT * FROM pedidos', (err, results) => {
+        if (err) {
+            console.error('Error al obtener pedidos:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        res.json(results);
+    });
 });
 
 // Crear un nuevo pedido
 app.post('/pedidos', (req, res) => {
-    const nuevoPedido = { id: generateId(), ...req.body };
-    pedidos.push(nuevoPedido);
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.json(nuevoPedido);
+    const nuevoPedido = req.body;
+
+    if (!nuevoPedido.usuario_id || !nuevoPedido.producto_id || !nuevoPedido.cantidad) {
+        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
+    }
+
+    db.query('INSERT INTO pedidos SET ?', nuevoPedido, (err, result) => {
+        if (err) {
+            console.error('Error al insertar el pedido:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+        res.json({ id: result.insertId, ...nuevoPedido });
+    });
 });
 
 // Actualizar un pedido existente
 app.put('/pedidos/:id', (req, res) => {
-    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
-    if (pedido) {
-        Object.assign(pedido, req.body);
-        writeData({ admins, productos, clientes, pedidos, inventario });
-        res.json(pedido);
-    } else {
-        res.status(404).send('Pedido no encontrado');
-    }
+    const nuevoDatos = req.body;
+
+    db.query('UPDATE pedidos SET ? WHERE id = ?', [nuevoDatos, req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el pedido:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Pedido no encontrado');
+        }
+
+        res.send('Pedido actualizado');
+    });
 });
 
 // Cancelar un pedido
 app.delete('/pedidos/:id', (req, res) => {
-    pedidos = pedidos.filter(p => p.id !== parseInt(req.params.id));
-    writeData({ admins, productos, clientes, pedidos, inventario });
-    res.send(`Pedido con ID: ${req.params.id} ha sido cancelado`);
-});
+    db.query('DELETE FROM pedidos WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error al cancelar el pedido:', err);
+            return res.status(500).send('Error en el servidor');
+        }
 
-/** Ruta para el inventario **/
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Pedido no encontrado');
+        }
 
-// Obtener inventario
-app.get('/inventario', (req, res) => {
-    res.json(inventario);
+        res.send(`Pedido con ID: ${req.params.id} ha sido cancelado`);
+    });
 });
 
 app.listen(port, () => {
