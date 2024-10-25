@@ -2,13 +2,13 @@ const express = require('express');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const path = require('path');  // Para manejar rutas de archivos
+const path = require('path');
 const app = express();
 const port = 3000;
 
 // Middleware para manejar JSON
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Para procesar formularios
+app.use(express.urlencoded({ extended: true }));
 
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
@@ -32,10 +32,22 @@ const generateToken = (user) => {
     return jwt.sign({ id: user.id, rol: user.rol }, 'tu_secreto_jwt', { expiresIn: '1h' });
 };
 
-/** Rutas para Autenticación **/
+// Middleware de autenticación
+const authenticateToken = (req, res, next) => {
+    const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+    if (!token) return res.status(403).send('Acceso prohibido: Token no proporcionado');
+
+    jwt.verify(token, 'tu_secreto_jwt', (err, user) => {
+        if (err) return res.status(403).send('Acceso prohibido: Token inválido');
+        req.user = user;
+        next();
+    });
+};
+
+/* Rutas para Autenticación */
 
 // Ruta para servir el formulario de login
-app.get('/', (req, res) => {
+app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'login.html'));
 });
 
@@ -52,7 +64,7 @@ app.post('/login', (req, res) => {
             console.error('Error en la consulta:', err);
             return res.status(500).send('Error en el servidor');
         }
-        
+
         if (results.length === 0) {
             return res.status(401).send('Credenciales incorrectas');
         }
@@ -76,11 +88,11 @@ app.post('/login', (req, res) => {
     });
 });
 
-/** Rutas para Usuarios **/
+/* Rutas para Usuarios */
 
-// Obtener todos los usuarios
-app.get('/usuarios', (req, res) => {
-    db.query('SELECT * FROM usuarios', (err, results) => {
+// Obtener todos los usuarios (protegida)
+app.get('/usuarios', authenticateToken, (req, res) => {
+    db.query('SELECT id, nombre, email, rol FROM usuarios', (err, results) => {
         if (err) {
             console.error('Error al obtener usuarios:', err);
             return res.status(500).send('Error en el servidor');
@@ -89,8 +101,25 @@ app.get('/usuarios', (req, res) => {
     });
 });
 
-// Crear un nuevo usuario
-app.post('/usuarios', (req, res) => {
+// Obtener usuario por ID (protegida)
+app.get('/usuarios/:id', authenticateToken, (req, res) => {
+    const userId = req.params.id; // Tomar el ID del parámetro de la URL
+    db.query('SELECT * FROM usuarios WHERE id = ?', [userId], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el usuario:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (results.length === 0) {
+            return res.status(404).send('Usuario no encontrado');
+        }
+
+        res.json(results[0]);
+    });
+});
+
+// Crear un nuevo usuario (protegida)
+app.post('/usuarios', authenticateToken, (req, res) => {
     const { nombre, email, password, rol } = req.body;
 
     if (!nombre || !email || !password || !rol) {
@@ -109,20 +138,21 @@ app.post('/usuarios', (req, res) => {
                 console.error('Error al insertar el usuario:', err);
                 return res.status(500).send('Error en el servidor');
             }
-            res.json({ id: result.insertId, ...nuevoUsuario });
+            res.json({ message: 'Usuario creado', id: result.insertId });
         });
     });
 });
 
-// Actualizar un usuario existente
-app.put('/usuarios/:id', (req, res) => {
+// Actualizar un usuario existente (protegida)
+app.put('/usuarios/:id', authenticateToken, (req, res) => {
+    const userId = req.params.id;
     const { nombre, email, rol } = req.body;
 
     if (!nombre || !email || !rol) {
         return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
 
-    db.query('UPDATE usuarios SET nombre = ?, email = ?, rol = ? WHERE id = ?', [nombre, email, rol, req.params.id], (err, result) => {
+    db.query('UPDATE usuarios SET nombre = ?, email = ?, rol = ? WHERE id = ?', [nombre, email, rol, userId], (err, result) => {
         if (err) {
             console.error('Error al actualizar el usuario:', err);
             return res.status(500).send('Error en el servidor');
@@ -136,9 +166,10 @@ app.put('/usuarios/:id', (req, res) => {
     });
 });
 
-// Eliminar un usuario
-app.delete('/usuarios/:id', (req, res) => {
-    db.query('DELETE FROM usuarios WHERE id = ?', [req.params.id], (err, result) => {
+// Eliminar un usuario (protegida)
+app.delete('/usuarios/:id', authenticateToken, (req, res) => {
+    const userId = req.params.id;
+    db.query('DELETE FROM usuarios WHERE id = ?', [userId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el usuario:', err);
             return res.status(500).send('Error en el servidor');
@@ -148,14 +179,14 @@ app.delete('/usuarios/:id', (req, res) => {
             return res.status(404).send('Usuario no encontrado');
         }
 
-        res.send(`Usuario con ID: ${req.params.id} ha sido eliminado`);
+        res.send('Usuario con ID: ' + userId + ' ha sido eliminado');
     });
 });
 
-/** Rutas para Productos **/
+/* Rutas para Productos */
 
-// Obtener todos los productos
-app.get('/productos', (req, res) => {
+// Obtener todos los productos (protegida)
+app.get('/productos', authenticateToken, (req, res) => {
     db.query('SELECT * FROM productos', (err, results) => {
         if (err) {
             console.error('Error al obtener productos:', err);
@@ -165,8 +196,25 @@ app.get('/productos', (req, res) => {
     });
 });
 
-// Crear un nuevo producto
-app.post('/productos', (req, res) => {
+// Obtener producto por ID (protegida)
+app.get('/productos/:id', authenticateToken, (req, res) => {
+    const productId = req.params.id; // Tomar el ID del parámetro de la URL
+    db.query('SELECT * FROM productos WHERE id = ?', [productId], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el producto:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (results.length === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+
+        res.json(results[0]);
+    });
+});
+
+// Crear un nuevo producto (protegida)
+app.post('/productos', authenticateToken, (req, res) => {
     const nuevoProducto = req.body;
 
     if (!nuevoProducto.nombre || !nuevoProducto.precio || !nuevoProducto.descripcion) {
@@ -178,15 +226,15 @@ app.post('/productos', (req, res) => {
             console.error('Error al insertar el producto:', err);
             return res.status(500).send('Error en el servidor');
         }
-        res.json({ id: result.insertId, ...nuevoProducto });
+        res.json({ message: 'Producto creado', id: result.insertId });
     });
 });
 
-// Actualizar un producto existente
-app.put('/productos/:id', (req, res) => {
-    const nuevoDatos = req.body;
+// Actualizar un producto existente (protegida)
+app.put('/productos/:id', authenticateToken, (req, res) => {
+    const productId = req.params.id;
 
-    db.query('UPDATE productos SET ? WHERE id = ?', [nuevoDatos, req.params.id], (err, result) => {
+    db.query('UPDATE productos SET ? WHERE id = ?', [req.body, productId], (err, result) => {
         if (err) {
             console.error('Error al actualizar el producto:', err);
             return res.status(500).send('Error en el servidor');
@@ -200,9 +248,10 @@ app.put('/productos/:id', (req, res) => {
     });
 });
 
-// Eliminar un producto
-app.delete('/productos/:id', (req, res) => {
-    db.query('DELETE FROM productos WHERE id = ?', [req.params.id], (err, result) => {
+// Eliminar un producto (protegida)
+app.delete('/productos/:id', authenticateToken, (req, res) => {
+    const productId = req.params.id;
+    db.query('DELETE FROM productos WHERE id = ?', [productId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el producto:', err);
             return res.status(500).send('Error en el servidor');
@@ -212,14 +261,14 @@ app.delete('/productos/:id', (req, res) => {
             return res.status(404).send('Producto no encontrado');
         }
 
-        res.send(`Producto con ID: ${req.params.id} ha sido eliminado`);
+        res.send('Producto con ID: ' + productId + ' ha sido eliminado');
     });
 });
 
-/** Rutas para Pedidos **/
+/* Rutas para Pedidos */
 
-// Obtener todos los pedidos
-app.get('/pedidos', (req, res) => {
+// Obtener todos los pedidos (protegida)
+app.get('/pedidos', authenticateToken, (req, res) => {
     db.query('SELECT * FROM pedidos', (err, results) => {
         if (err) {
             console.error('Error al obtener pedidos:', err);
@@ -229,8 +278,25 @@ app.get('/pedidos', (req, res) => {
     });
 });
 
-// Crear un nuevo pedido
-app.post('/pedidos', (req, res) => {
+// Obtener pedido por ID (protegida)
+app.get('/pedidos/:id', authenticateToken, (req, res) => {
+    const pedidoId = req.params.id; // Tomar el ID del parámetro de la URL
+    db.query('SELECT * FROM pedidos WHERE id = ?', [pedidoId], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el pedido:', err);
+            return res.status(500).send('Error en el servidor');
+        }
+
+        if (results.length === 0) {
+            return res.status(404).send('Pedido no encontrado');
+        }
+
+        res.json(results[0]);
+    });
+});
+
+// Crear un nuevo pedido (protegida)
+app.post('/pedidos', authenticateToken, (req, res) => {
     const nuevoPedido = req.body;
 
     if (!nuevoPedido.usuario_id || !nuevoPedido.producto_id || !nuevoPedido.cantidad) {
@@ -242,15 +308,15 @@ app.post('/pedidos', (req, res) => {
             console.error('Error al insertar el pedido:', err);
             return res.status(500).send('Error en el servidor');
         }
-        res.json({ id: result.insertId, ...nuevoPedido });
+        res.json({ message: 'Pedido creado', id: result.insertId });
     });
 });
 
-// Actualizar un pedido existente
-app.put('/pedidos/:id', (req, res) => {
-    const nuevoDatos = req.body;
+// Actualizar un pedido existente (protegida)
+app.put('/pedidos/:id', authenticateToken, (req, res) => {
+    const pedidoId = req.params.id;
 
-    db.query('UPDATE pedidos SET ? WHERE id = ?', [nuevoDatos, req.params.id], (err, result) => {
+    db.query('UPDATE pedidos SET ? WHERE id = ?', [req.body, pedidoId], (err, result) => {
         if (err) {
             console.error('Error al actualizar el pedido:', err);
             return res.status(500).send('Error en el servidor');
@@ -264,11 +330,12 @@ app.put('/pedidos/:id', (req, res) => {
     });
 });
 
-// Cancelar un pedido
-app.delete('/pedidos/:id', (req, res) => {
-    db.query('DELETE FROM pedidos WHERE id = ?', [req.params.id], (err, result) => {
+// Eliminar un pedido (protegida)
+app.delete('/pedidos/:id', authenticateToken, (req, res) => {
+    const pedidoId = req.params.id;
+    db.query('DELETE FROM pedidos WHERE id = ?', [pedidoId], (err, result) => {
         if (err) {
-            console.error('Error al cancelar el pedido:', err);
+            console.error('Error al eliminar el pedido:', err);
             return res.status(500).send('Error en el servidor');
         }
 
@@ -276,10 +343,11 @@ app.delete('/pedidos/:id', (req, res) => {
             return res.status(404).send('Pedido no encontrado');
         }
 
-        res.send(`Pedido con ID: ${req.params.id} ha sido cancelado`);
+        res.send('Pedido con ID: ' + pedidoId + ' ha sido eliminado');
     });
 });
 
+// Iniciar el servidor
 app.listen(port, () => {
-    console.log(`Servidor corriendo en http://localhost:${port}`);
+    console.log(`Servidor escuchando en http://localhost:${port}`);
 });
