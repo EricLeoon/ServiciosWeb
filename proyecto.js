@@ -172,14 +172,14 @@ app.delete('/usuarios/:id', authenticateToken, (req, res) => {
     db.query('DELETE FROM usuarios WHERE id = ?', [userId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el usuario:', err);
-            return res.status(500).send('Error en el servidor');
+            return res.status(500).json({ message: 'Error en el servidor al eliminar el usuario' });
         }
 
         if (result.affectedRows === 0) {
-            return res.status(404).send('Usuario no encontrado');
+            return res.status(404).json({ message: 'Usuario no encontrado' });
         }
 
-        res.send('Usuario con ID: ' + userId + ' ha sido eliminado');
+        res.json({ message: 'Usuario con ID ' + userId + ' eliminado' });
     });
 });
 
@@ -254,14 +254,14 @@ app.delete('/productos/:id', authenticateToken, (req, res) => {
     db.query('DELETE FROM productos WHERE id = ?', [productId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el producto:', err);
-            return res.status(500).send('Error en el servidor');
+            return res.status(500).json({ message: 'Error en el servidor al eliminar el producto' });
         }
 
         if (result.affectedRows === 0) {
-            return res.status(404).send('Producto no encontrado');
+            return res.status(404).json({ message: 'Producto no encontrado' });
         }
 
-        res.send('Producto con ID: ' + productId + ' ha sido eliminado');
+        res.json({ message: 'Producto con ID ' + productId + ' eliminado' });
     });
 });
 
@@ -336,14 +336,14 @@ app.delete('/pedidos/:id', authenticateToken, (req, res) => {
     db.query('DELETE FROM pedidos WHERE id = ?', [pedidoId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el pedido:', err);
-            return res.status(500).send('Error en el servidor');
+            return res.status(500).json({ message: 'Error en el servidor al eliminar el pedido' });
         }
 
         if (result.affectedRows === 0) {
-            return res.status(404).send('Pedido no encontrado');
+            return res.status(404).json({ message: 'Pedido no encontrado' });
         }
 
-        res.send('Pedido con ID: ' + pedidoId + ' ha sido eliminado');
+        res.json({ message: 'Pedido con ID ' + pedidoId + ' eliminado' });
     });
 });
 
