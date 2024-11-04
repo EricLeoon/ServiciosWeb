@@ -5,10 +5,26 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const app = express();
 const port = 3000;
+const host = '0.0.0.0'; // Para aceptar conexiones desde cualquier dispositivo en la red local
 
-// Middleware para manejar JSON
+// Middleware para manejar JSON y formularios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Configuración para servir archivos estáticos
+app.use(express.static(path.join(__dirname)));
+
+const cors = require('cors');
+
+// Configura CORS para aceptar solo conexiones de tu red local
+const corsOptions = {
+    origin: /^http:\/\/192\.168\.1\.\d+$/, // Permite IPs locales en el rango 192.168.1.*
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
+
 
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
@@ -215,12 +231,13 @@ app.get('/productos/:id', authenticateToken, (req, res) => {
 
 // Crear un nuevo producto (protegida)
 app.post('/productos', authenticateToken, (req, res) => {
-    const nuevoProducto = req.body;
+    const { nombre, precio, descripcion } = req.body;
 
-    if (!nuevoProducto.nombre || !nuevoProducto.precio || !nuevoProducto.descripcion) {
+    if (!nombre || !precio || !descripcion) {
         return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
 
+    const nuevoProducto = { nombre, precio, descripcion };
     db.query('INSERT INTO productos SET ?', nuevoProducto, (err, result) => {
         if (err) {
             console.error('Error al insertar el producto:', err);
@@ -229,6 +246,7 @@ app.post('/productos', authenticateToken, (req, res) => {
         res.json({ message: 'Producto creado', id: result.insertId });
     });
 });
+
 
 // Actualizar un producto existente (protegida)
 app.put('/productos/:id', authenticateToken, (req, res) => {
@@ -297,12 +315,13 @@ app.get('/pedidos/:id', authenticateToken, (req, res) => {
 
 // Crear un nuevo pedido (protegida)
 app.post('/pedidos', authenticateToken, (req, res) => {
-    const nuevoPedido = req.body;
+    const { usuario_id, producto_id, cantidad } = req.body;
 
-    if (!nuevoPedido.usuario_id || !nuevoPedido.producto_id || !nuevoPedido.cantidad) {
+    if (!usuario_id || !producto_id || !cantidad) {
         return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
 
+    const nuevoPedido = { usuario_id, producto_id, cantidad };
     db.query('INSERT INTO pedidos SET ?', nuevoPedido, (err, result) => {
         if (err) {
             console.error('Error al insertar el pedido:', err);
@@ -311,6 +330,7 @@ app.post('/pedidos', authenticateToken, (req, res) => {
         res.json({ message: 'Pedido creado', id: result.insertId });
     });
 });
+
 
 // Actualizar un pedido existente (protegida)
 app.put('/pedidos/:id', authenticateToken, (req, res) => {
@@ -348,6 +368,7 @@ app.delete('/pedidos/:id', authenticateToken, (req, res) => {
 });
 
 // Iniciar el servidor
-app.listen(port, () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
+app.listen(port, '192.168.1.248', () => {
+    console.log(`Servidor escuchando en http://192.168.1.248:${port}`);
 });
+

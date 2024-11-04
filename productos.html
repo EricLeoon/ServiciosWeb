@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos</title>
+    <style>
+        /* Estilos de la página */
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            margin-top: 20px;
+        }
+        .form-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .products-table {
+            width: 100%;
+            max-width: 800px;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .products-table th, .products-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .products-table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .actions button {
+            background-color: #f44336;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gestión de Productos</h1>
+    <div class="form-container">
+        <h2 id="formTitle">Agregar Producto</h2>
+        <form id="productForm">
+            <input type="hidden" id="productId">
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" required>
+            <label for="precio">Precio:</label>
+            <input type="number" id="precio" name="precio" step="0.01" required>
+            <label for="descripcion">Descripción:</label>
+            <textarea id="descripcion" name="descripcion" rows="4" required></textarea>
+            <button type="submit" id="saveButton">Guardar Producto</button>
+        </form>
+    </div>
+
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>Descripción</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="productList"></tbody>
+    </table>
+
+    <script>
+    const API_URL = 'http://192.168.1.248:3000'; // Cambia esto a la IP de tu servidor
+    const token = localStorage.getItem('token');
+
+        document.getElementById('productForm').addEventListener('submit', handleFormSubmit);
+        document.addEventListener('DOMContentLoaded', fetchProducts);
+
+        function fetchProducts() {
+            fetch(`${API_URL}/productos`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(response => response.json())
+            .then(data => displayProducts(data))
+            .catch(error => alert('Error al cargar productos: ' + error.message));
+        }
+
+        function displayProducts(products) {
+            const productList = document.getElementById('productList');
+            productList.innerHTML = '';
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.id}</td>
+                    <td>${product.nombre}</td>
+                    <td>${product.precio}</td>
+                    <td>${product.descripcion}</td>
+                    <td class="actions">
+                        <button onclick="editProduct(${product.id})">Editar</button>
+                        <button onclick="deleteProduct(${product.id})">Eliminar</button>
+                    </td>
+                `;
+                productList.appendChild(row);
+            });
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('productId').value;
+            const nombre = document.getElementById('nombre').value;
+            const precio = document.getElementById('precio').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const product = { nombre, precio, descripcion };
+
+            if (id) {
+                updateProduct(id, product);
+            } else {
+                createProduct(product);
+            }
+        }
+
+        function createProduct(product) {
+            fetch(`${API_URL}/productos`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(product)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchProducts();
+                resetForm();
+            })
+            .catch(error => alert('Error al crear producto: ' + error.message));
+        }
+
+        function editProduct(id) {
+            fetch(`${API_URL}/productos/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(response => response.json())
+            .then(product => {
+                document.getElementById('productId').value = product.id;
+                document.getElementById('nombre').value = product.nombre;
+                document.getElementById('precio').value = product.precio;
+                document.getElementById('descripcion').value = product.descripcion;
+                document.getElementById('formTitle').textContent = 'Editar Producto';
+                document.getElementById('saveButton').textContent = 'Actualizar Producto';
+            })
+            .catch(error => alert('Error al cargar el producto: ' + error.message));
+        }
+
+        function updateProduct(id, product) {
+            fetch(`${API_URL}/productos/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(product)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchProducts();
+                resetForm();
+            })
+            .catch(error => alert('Error al actualizar el producto: ' + error.message));
+        }
+
+        function deleteProduct(id) {
+            if (confirm('¿Estás seguro de eliminar este producto?')) {
+                fetch(`${API_URL}/productos/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchProducts();
+                })
+                .catch(error => alert('Error al eliminar producto: ' + error.message));
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            document.getElementById('formTitle').textContent = 'Agregar Producto';
+            document.getElementById('saveButton').textContent = 'Guardar Producto';
+        }
+    </script>
+</body>
+</html>
