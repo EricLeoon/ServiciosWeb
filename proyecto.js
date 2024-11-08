@@ -25,7 +25,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 
-
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
     host: 'localhost',
@@ -185,19 +184,25 @@ app.put('/usuarios/:id', authenticateToken, (req, res) => {
 // Eliminar un usuario (protegida)
 app.delete('/usuarios/:id', authenticateToken, (req, res) => {
     const userId = req.params.id;
+
+    // Comienza la consulta de eliminación en la base de datos
     db.query('DELETE FROM usuarios WHERE id = ?', [userId], (err, result) => {
         if (err) {
+            // Si hay un error de SQL, se muestra aquí
             console.error('Error al eliminar el usuario:', err);
             return res.status(500).json({ message: 'Error en el servidor al eliminar el usuario' });
         }
 
+        // Verifica si el usuario fue encontrado y eliminado
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
 
+        // Enviar respuesta exitosa al cliente
         res.json({ message: 'Usuario con ID ' + userId + ' eliminado' });
     });
 });
+
 
 /* Rutas para Productos */
 
@@ -298,38 +303,51 @@ app.get('/pedidos', authenticateToken, (req, res) => {
 
 // Obtener pedido por ID (protegida)
 app.get('/pedidos/:id', authenticateToken, (req, res) => {
-    const pedidoId = req.params.id; // Tomar el ID del parámetro de la URL
-    db.query('SELECT * FROM pedidos WHERE id = ?', [pedidoId], (err, results) => {
+    const pedidoId = req.params.id;
+
+    const sql = `
+        SELECT p.id, p.cantidad, u.nombre AS cliente_nombre, prod.nombre AS producto_nombre
+        FROM pedidos p
+        JOIN usuarios u ON p.usuario_id = u.id
+        JOIN productos prod ON p.producto_id = prod.id
+        WHERE p.id = ?
+    `;
+
+    db.query(sql, [pedidoId], (err, results) => {
         if (err) {
             console.error('Error al obtener el pedido:', err);
-            return res.status(500).send('Error en el servidor');
+            return res.status(500).json({ message: 'Error en el servidor' });
         }
 
         if (results.length === 0) {
-            return res.status(404).send('Pedido no encontrado');
+            return res.status(404).json({ message: 'Pedido no encontrado' });
         }
 
         res.json(results[0]);
     });
 });
 
+
 // Crear un nuevo pedido (protegida)
 app.post('/pedidos', authenticateToken, (req, res) => {
-    const { usuario_id, producto_id, cantidad } = req.body;
+    const pedidos = req.body;
 
-    if (!usuario_id || !producto_id || !cantidad) {
-        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
+    if (!Array.isArray(pedidos) || pedidos.length === 0) {
+        return res.status(400).json({ message: 'Se requiere una lista de pedidos.' });
     }
 
-    const nuevoPedido = { usuario_id, producto_id, cantidad };
-    db.query('INSERT INTO pedidos SET ?', nuevoPedido, (err, result) => {
+    const sql = 'INSERT INTO pedidos (usuario_id, producto_id, cantidad, fecha) VALUES ?';
+    const values = pedidos.map(pedido => [pedido.usuario_id, pedido.producto_id, pedido.cantidad, new Date()]);
+
+    db.query(sql, [values], (err, result) => {
         if (err) {
-            console.error('Error al insertar el pedido:', err);
+            console.error('Error al insertar pedidos:', err);
             return res.status(500).send('Error en el servidor');
         }
-        res.json({ message: 'Pedido creado', id: result.insertId });
+        res.json({ message: 'Pedidos creados con éxito', affectedRows: result.affectedRows });
     });
 });
+
 
 
 // Actualizar un pedido existente (protegida)
@@ -350,9 +368,38 @@ app.put('/pedidos/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Eliminar un pedido (protegida)
+// Actualizar un pedido existente (protegida)
+app.put('/pedidos/:id', authenticateToken, (req, res) => {
+    const pedidoId = req.params.id;
+    const { usuario_id, producto_id, cantidad } = req.body;
+
+    // Verifica si todos los campos requeridos están presentes
+    if (!usuario_id || !producto_id || !cantidad) {
+        return res.status(400).json({ message: 'Todos los campos son requeridos.' });
+    }
+
+    console.log('Datos recibidos para actualizar el pedido:', { usuario_id, producto_id, cantidad, pedidoId });
+
+    db.query(
+        'UPDATE pedidos SET usuario_id = ?, producto_id = ?, cantidad = ? WHERE id = ?', 
+        [usuario_id, producto_id, cantidad, pedidoId], 
+        (err, result) => {
+            if (err) {
+                console.error('Error al actualizar el pedido:', err);
+                return res.status(500).json({ message: 'Error en el servidor al actualizar el pedido' });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: 'Pedido no encontrado' });
+            }
+
+            res.json({ message: 'Pedido actualizado correctamente' });
+    });
+});
+
 app.delete('/pedidos/:id', authenticateToken, (req, res) => {
     const pedidoId = req.params.id;
+    
     db.query('DELETE FROM pedidos WHERE id = ?', [pedidoId], (err, result) => {
         if (err) {
             console.error('Error al eliminar el pedido:', err);
@@ -363,9 +410,10 @@ app.delete('/pedidos/:id', authenticateToken, (req, res) => {
             return res.status(404).json({ message: 'Pedido no encontrado' });
         }
 
-        res.json({ message: 'Pedido con ID ' + pedidoId + ' eliminado' });
+        res.json({ message: `Pedido con ID ${pedidoId} eliminado exitosamente` });
     });
 });
+
 
 // Iniciar el servidor
 app.listen(port, '192.168.1.248', () => {
