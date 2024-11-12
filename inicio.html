@@ -126,6 +126,34 @@
     </style>
 </head>
 <body>
+    <script>
+        // Verificación del token antes de cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                alert('Credenciales incorrectas o sesión expirada');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            fetch('http://10.168.3.97:3000/verify-token', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Token inválido o sesión expirada');
+                }
+            })
+            .catch(error => {
+                alert(error.message);
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            });
+        });
+    </script>
+
     <button class="logout-button" onclick="cerrarSesion()">Cerrar Sesión</button>
 
     <div class="container container-main">
@@ -157,18 +185,18 @@
     </div>
 
     <script>
-        const API_URL = 'http://192.168.1.248:3000';
+        const API_URL = 'http://10.168.3.97:3000';
         const token = localStorage.getItem('token');
         const carrito = [];
-
-        document.addEventListener('DOMContentLoaded', () => {
-            cargarProductos();
-        });
 
         function cerrarSesion() {
             localStorage.removeItem('token');
             window.location.href = 'login.html';
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProductos();
+        });
 
         function cargarProductos() {
             fetch(`${API_URL}/productos`, {

@@ -3,9 +3,10 @@ const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const cors = require('cors');
 const app = express();
 const port = 3000;
-const host = '0.0.0.0'; // Para aceptar conexiones desde cualquier dispositivo en la red local
+const host = '0.0.0.0';
 
 // Middleware para manejar JSON y formularios
 app.use(express.json());
@@ -14,16 +15,13 @@ app.use(express.urlencoded({ extended: true }));
 // Configuración para servir archivos estáticos
 app.use(express.static(path.join(__dirname)));
 
-const cors = require('cors');
-
 // Configura CORS para aceptar solo conexiones de tu red local
 const corsOptions = {
-    origin: /^http:\/\/192\.168\.1\.\d+$/, // Permite IPs locales en el rango 192.168.1.*
+    origin: /^http:\/\/10\.168\.3\.\d+$/,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
-
 
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
@@ -33,7 +31,6 @@ const db = mysql.createConnection({
     database: 'purificadora_db'
 });
 
-// Conectar a la base de datos
 db.connect(err => {
     if (err) {
         console.error('Error conectando a la base de datos:', err);
@@ -59,7 +56,11 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-/* Rutas para Autenticación */
+// Nueva ruta para verificar el token
+app.post('/verify-token', authenticateToken, (req, res) => {
+    res.sendStatus(200); // Token válido
+});
+
 
 // Ruta para servir el formulario de login
 app.get('/login', (req, res) => {
@@ -416,7 +417,7 @@ app.delete('/pedidos/:id', authenticateToken, (req, res) => {
 
 
 // Iniciar el servidor
-app.listen(port, '192.168.1.248', () => {
-    console.log(`Servidor escuchando en http://192.168.1.248:${port}`);
+app.listen(port, '10.168.3.97', () => {
+    console.log(`Servidor escuchando en http://10.168.3.97:${port}`);
 });
 

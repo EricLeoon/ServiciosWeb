@@ -102,19 +102,20 @@
             event.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
-            fetch('http://192.168.1.248:3000/login', { 
+    
+            fetch('http://10.168.3.97:3000/login', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             })
             .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
             .then(data => {
-                localStorage.setItem('token', data.token);
-                window.location.href = '/inicio.html';
+                localStorage.setItem('token', data.token); // Guarda el token en localStorage
+                window.location.href = 'inicio.html'; // Redirige al inicio
             })
             .catch(error => alert(error.message));
         });
     </script>
+    
 </body>
 </html>

@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                alert('Credenciales incorrectas o sesión expirada');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            fetch('http://10.168.3.97:3000/verify-token', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Token inválido o sesión expirada');
+                }
+            })
+            .catch(error => {
+                alert(error.message);
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            });
+        });
+    </script>
+
     <div class="container mt-5">
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="text-center">Gestión de Usuarios</h1>
@@ -52,7 +79,7 @@
     </div>
 
     <script>
-        const API_URL = 'http://192.168.1.248:3000';
+        const API_URL = 'http://10.168.3.97:3000';
         const token = localStorage.getItem('token');
 
         document.getElementById('userForm').addEventListener('submit', handleFormSubmit);
@@ -150,25 +177,19 @@
         }
 
         function deleteUser(id) {
-    if (confirm('¿Estás seguro de eliminar este usuario?')) {
-        fetch(`${API_URL}/usuarios/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error en el servidor al eliminar el usuario');
+            if (confirm('¿Estás seguro de eliminar este usuario?')) {
+                fetch(`${API_URL}/usuarios/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchUsers();
+                })
+                .catch(error => alert('Error al eliminar usuario: ' + error.message));
             }
-            return response.json();
-        })
-        .then(data => {
-            alert(data.message);
-            fetchUsers(); // Recarga la lista de usuarios después de eliminar
-        })
-        .catch(error => alert('Error al eliminar usuario: ' + error.message));
-    }
-}
-
+        }
 
         function resetForm() {
             document.getElementById('userForm').reset();
