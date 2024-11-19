@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname)));
 
 // Configura CORS para aceptar solo conexiones de tu red local
 const corsOptions = {
-    origin: /^http:\/\/10\.168\.3\.\d+$/,
+    origin: ['http://3.22.144.171'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -25,11 +25,11 @@ app.use(cors(corsOptions));
 
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'leon2929',
+    host: 'ls-cf130092dca4b812b494d18a821611d00996da16.cd8qggqcgt12.us-east-2.rds.amazonaws.com',
+    user: 'dbmasteruser',
+    password: 'leon7893',
     database: 'purificadora_db'
-});
+    });
 
 db.connect(err => {
     if (err) {
@@ -417,7 +417,7 @@ app.delete('/pedidos/:id', authenticateToken, (req, res) => {
 
 
 // Iniciar el servidor
-app.listen(port, '10.168.3.97', () => {
-    console.log(`Servidor escuchando en http://10.168.3.97:${port}`);
-});
+app.listen(port, '0.0.0.0', () => { 
+    console.log(`Servidor escuchando en http://0.0.0.0:${port}`);
+    });
 

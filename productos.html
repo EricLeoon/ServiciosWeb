@@ -18,7 +18,7 @@
                 return;
             }
 
-            fetch('http://10.168.3.97:3000/verify-token', {
+            fetch('hhttp://3.22.144.171:3000/verify-token', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
@@ -76,7 +76,7 @@
     </div>
 
     <script>
-        const API_URL = 'http://10.168.3.97:3000';
+        const API_URL = 'http://3.22.144.171:3000';
         const token = localStorage.getItem('token');
 
         document.getElementById('productForm').addEventListener('submit', handleFormSubmit);
